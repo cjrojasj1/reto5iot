@@ -530,6 +530,7 @@ def get_map_json(request, **kwargs):
         selectedMeasure = measurements[0]
 
     locations = Location.objects.all()
+
     try:
         start = datetime.fromtimestamp(
             float(request.GET.get("from", None)) / 1000
@@ -585,6 +586,78 @@ def get_map_json(request, **kwargs):
 
     return JsonResponse(data_result)
 
+def get_map_json_reto(request, **kwargs):
+
+    data_result = {}
+
+    try:
+        start = datetime.fromtimestamp(
+            float(request.GET.get("from", None)) / 1000
+        )
+    except:
+        start = None
+    try:
+        end = datetime.fromtimestamp(
+            float(request.GET.get("to", None)) / 1000)
+    except:
+        end = None
+    if start == None and end == None:
+        start = datetime.now()
+        start = start - dateutil.relativedelta.relativedelta(weeks=1)
+        end = datetime.now()
+        end += dateutil.relativedelta.relativedelta(days=1)
+    elif end == None:
+        end = datetime.now()
+    elif start == None:
+        start = datetime.fromtimestamp(0)
+        
+    users = User.objects.all()
+    measurements = Measurement.objects.all()
+
+    data = [] 
+
+    for user in users:
+    
+        stations = Station.objects.filter(user_id=user.login)
+        
+        if stations.count() <= 0:
+            continue
+
+        role = Role.objects.filter(id=user.role_id)[0]
+
+        for station in stations:
+            location = Location.objects.filter(id=station.location_id)[0]
+            for measurement in measurements:
+            
+                selectedData = Data.objects.filter(
+                    station_id=station.id, measurement_id=measurement.id, time__gte=start.date(), time__lte=end.date())
+
+                if selectedData.count() <= 0:
+                    continue
+
+                minVal = selectedData.aggregate(
+                    Min('value'))['value__min']
+                maxVal = selectedData.aggregate(
+                    Max('value'))['value__max']
+                avgVal = selectedData.aggregate(
+                    Avg('value'))['value__avg']
+
+                data.append({
+                    'login': user.login,
+                    'role' : role.name,
+                    'location': f'{location.city.name}, {location.state.name}, {location.country.name}',
+                    'lat': location.lat,
+                    'lng': location.lng,
+                    'measurement': f'{measurement.name}({measurement.unit})',
+                    'min': minVal if minVal != None else 0,
+                    'max': maxVal if maxVal != None else 0,
+                    'avg': round(avgVal if avgVal != None else 0, 2),
+                    
+                })
+    
+    data_result["data"] = data
+
+    return JsonResponse(data_result)
 
 def download_csv_data(request):
     print("Getting time for csv req")
