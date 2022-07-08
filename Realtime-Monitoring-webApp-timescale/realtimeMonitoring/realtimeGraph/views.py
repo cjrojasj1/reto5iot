@@ -564,19 +564,17 @@ def get_map_json(request, **kwargs):
     return JsonResponse(data_result)
 
 
+#Reto 5 IoT - Start: funcion con la logica para la nueva consulta
 def get_map_json_reto(request, **kwargs):
-
     data_result = {}
-
+    #Se leen los parametros de fecha de inicio y fin ingresados por la URL
+    #Si no se ingresan, se asigna por defecto un periodo de tiempo
     try:
-        start = datetime.fromtimestamp(
-            float(request.GET.get("from", None)) / 1000
-        )
+        start = datetime.fromtimestamp(float(request.GET.get("from", None)) / 1000)
     except:
         start = None
     try:
-        end = datetime.fromtimestamp(
-            float(request.GET.get("to", None)) / 1000)
+        end = datetime.fromtimestamp(float(request.GET.get("to", None)) / 1000)
     except:
         end = None
     if start == None and end == None:
@@ -588,39 +586,33 @@ def get_map_json_reto(request, **kwargs):
         end = datetime.now()
     elif start == None:
         start = datetime.fromtimestamp(0)
-
+    #El filtro de fecha se hace con el timestamp en microsegundos
     start_ts = int(start.timestamp() * 1000000)
     end_ts = int(end.timestamp() * 1000000)
-
+    #Se obtienen los usuarios del sistema
     users = User.objects.all()
+    #Se obtienen las variable de medicion
     measurements = Measurement.objects.all()
-
     data = [] 
-
+    #Por cada usuario se valida la existencia de una estacion asociada
     for user in users:
-    
         stations = Station.objects.filter(user_id=user.login)
-        
         if stations.count() <= 0:
             continue
-
+        #Si existen estaciones, se determina su rol de usuario
         role = Role.objects.filter(id=user.role_id)[0]
-
+        #Por cada estacion del usuario, se identifica su ubicacion
         for station in stations:
             location = Location.objects.filter(id=station.location_id)[0]
+            #Se recorren las variables de medicion y junto con la estacion se buscan los datos de medicion
             for measurement in measurements:
-            
-                selectedData = Data.objects.filter(
-                    station_id=station.id, measurement_id=measurement.id, time__gte=start_ts, time__lte=end_ts)
-
+                selectedData = Data.objects.filter(station_id=station.id, measurement_id=measurement.id, time__gte=start_ts, time__lte=end_ts)
                 if selectedData.count() <= 0:
                     continue
-
+                #Si existen datos de medicion, se calculan los estadisticos y se va alimentando la informacion para el reporte
                 minVal = selectedData.aggregate(Min("min_value"))["min_value__min"]
                 maxVal = selectedData.aggregate(Max("max_value"))["max_value__max"]
                 avgVal = selectedData.aggregate(Avg("avg_value"))["avg_value__avg"]
-
-
                 data.append({
                     'login': user.login,
                     'role' : role.name,
@@ -632,13 +624,10 @@ def get_map_json_reto(request, **kwargs):
                     'max': maxVal if maxVal != None else 0,
                     'avg': round(avgVal if avgVal != None else 0, 2),
                 })
-
-
-
-
+    #Se retornan los resultados en formato JSON
     data_result["data"] = data
-
     return JsonResponse(data_result)
+#Reto 5 IoT - End
 
 
 class RemaView(TemplateView):

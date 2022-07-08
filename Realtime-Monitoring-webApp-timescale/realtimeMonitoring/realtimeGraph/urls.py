@@ -10,7 +10,9 @@ urlpatterns = [
     path("rema/<str:measure>", RemaView.as_view(), name="rema"),
     path("mapJson/", get_map_json, name="mapJson"),
     path("mapJson/<str:measure>", get_map_json, name="mapJson"),
+    #Reto 5 IoT - Start: se agrega nuevo patro de URL para la nueva consulta
     path("mapJsonReto/", get_map_json_reto, name="mapJsonReto"),
+    #Reto 5 IoT - End
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("historical/data", download_csv_data, name="historical-data"),
